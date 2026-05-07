@@ -114,6 +114,36 @@ class RepairOrderItem(models.Model):
     def __str__(self):
         return f"{self.quantity} x {self.product.name} for {self.repair_order.code}"
 
+class RepairOrderService(models.Model):
+    """
+    Representa una tarea específica (servicio) asignada a una orden de reparación.
+    Incluye un estado (is_completed) para la checklist de mecánicos.
+    """
+    repair_order = models.ForeignKey(RepairOrder, on_delete=models.CASCADE, related_name='services')
+    service = models.ForeignKey(ServiceMethod, on_delete=models.CASCADE)
+    is_completed = models.BooleanField(default=False)
+    price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Precio al momento de la asignación")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Servicio {self.service.name} para {self.repair_order.code}"
+
+class RepairOrderGallery(models.Model):
+    """
+    Galería dinámica para evidenciar el estado de la moto en el ingreso y a la salida.
+    """
+    STAGE_CHOICES = (
+        ('entry', 'Ingreso'),
+        ('exit', 'Salida / Finalización'),
+    )
+    repair_order = models.ForeignKey(RepairOrder, on_delete=models.CASCADE, related_name='gallery')
+    media = models.FileField(upload_to='repairs/gallery/')
+    stage = models.CharField(max_length=20, choices=STAGE_CHOICES, default='entry')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Foto de {self.get_stage_display()} para {self.repair_order.code}"
+
 class Invoice(models.Model):
     code = models.CharField(max_length=50, unique=True)
     quote = models.OneToOneField(Quote, on_delete=models.SET_NULL, null=True, blank=True)

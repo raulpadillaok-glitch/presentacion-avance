@@ -4,9 +4,9 @@ import { Wrench, Package, TrendingUp, Users, AlertCircle, Clock, CheckCircle, Ba
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 export default function DashboardHome() {
-  const role = localStorage.getItem('user_role') || 'usuario';
-  const companyName = localStorage.getItem('company_name') || 'Moto ERP';
-  const currency = localStorage.getItem('company_currency') || 'Bs.';
+  const role = sessionStorage.getItem('user_role') || 'usuario';
+  const companyName = sessionStorage.getItem('company_name') || 'Moto ERP';
+  const currency = sessionStorage.getItem('company_currency') || 'Bs.';
   
   const [stats, setStats] = useState({
     monthly_revenue: 0,
@@ -16,14 +16,15 @@ export default function DashboardHome() {
     total_clients: 0,
     recent_orders: [],
     critical_stock: [],
-    revenue_chart: []
+    revenue_chart: [],
+    weekly_consumption: []
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = sessionStorage.getItem('access_token');
         const res = await axios.get('http://localhost:8000/api/v1/dashboard-stats/', {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -162,30 +163,55 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {/* Right Column: Missing Parts Alert */}
-        <div style={{ background: 'var(--bg-secondary)', borderRadius: '16px', padding: '1.5rem', border: '1px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.2)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.2rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><AlertCircle size={20}/> Stock Deficiente</h3>
+        {/* Right Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          
+          {/* Missing Parts Alert */}
+          <div style={{ background: 'var(--bg-secondary)', borderRadius: '16px', padding: '1.5rem', border: '1px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.2rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><AlertCircle size={20}/> Stock Deficiente</h3>
+            </div>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {stats.critical_stock.map(p => (
+                <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem', background: 'var(--bg-main)', borderRadius: '8px', borderLeft: '4px solid #ef4444' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{p.name}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mínimo aceptable: {p.min_stock}</div>
+                  </div>
+                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '0.25rem 0.75rem', borderRadius: '12px', fontWeight: 'bold' }}>
+                    {p.stock} uni
+                  </div>
+                </li>
+              ))}
+              {stats.critical_stock.length === 0 && (
+                <div style={{ textAlign: 'center', color: '#10b981', padding: '2rem 0' }}>
+                 <CheckCircle size={40} style={{ margin: '0 auto', marginBottom: '1rem', opacity: 0.5 }} />
+                 <p>Tu inventario está en perfectas condiciones.</p>
+                </div>
+              )}
+            </ul>
           </div>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {stats.critical_stock.map(p => (
-              <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem', background: 'var(--bg-main)', borderRadius: '8px', borderLeft: '4px solid #ef4444' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{p.name}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mínimo aceptable: {p.min_stock}</div>
-                </div>
-                <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '0.25rem 0.75rem', borderRadius: '12px', fontWeight: 'bold' }}>
-                  {p.stock} uni
-                </div>
-              </li>
-            ))}
-            {stats.critical_stock.length === 0 && (
-              <div style={{ textAlign: 'center', color: '#10b981', padding: '2rem 0' }}>
-               <CheckCircle size={40} style={{ margin: '0 auto', marginBottom: '1rem', opacity: 0.5 }} />
-               <p>Tu inventario está en perfectas condiciones.</p>
-              </div>
-            )}
-          </ul>
+
+          {/* Weekly Consumption Bar Chart */}
+          <div style={{ background: 'var(--bg-secondary)', borderRadius: '16px', padding: '1.5rem', border: '1px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}><Package size={20}/> Top Consumo Semanal</h3>
+            </div>
+            <div style={{ width: '100%', height: 250 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.weekly_consumption} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={12} width={100} />
+                  <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
+                  <Bar dataKey="cantidad" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Repuestos más utilizados (Últimos 7 días)
+            </div>
+          </div>
+
         </div>
 
       </div>

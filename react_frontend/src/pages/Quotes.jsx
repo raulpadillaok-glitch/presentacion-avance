@@ -39,7 +39,7 @@ export default function Quotes() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const headers = { Authorization: `Bearer ${token}` };
 
       const [quotesRes, clientsRes, motosRes, prodRes, servRes] = await Promise.all([
@@ -103,7 +103,7 @@ export default function Quotes() {
   const handleDelete = async (id) => {
     if(!window.confirm("¿Borrar esta cotización?")) return;
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       await axios.delete(`http://localhost:8000/api/v1/workshop/quotes/${id}/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -147,7 +147,7 @@ export default function Quotes() {
     if(!fastMotoData.plate || !fastMotoData.brand || !fastMotoData.model_name) return alert("Rellene placa, marca y modelo.");
     
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const res = await axios.post('http://localhost:8000/api/v1/workshop/motorcycles/', {
         ...fastMotoData,
         client: formData.client
@@ -168,7 +168,7 @@ export default function Quotes() {
     setSubmitError(null);
     try {
       const sub = items.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
-      const tx = sub * (parseInt(localStorage.getItem('company_tax') || '13') / 100);
+      const tx = sub * (parseInt(sessionStorage.getItem('company_tax') || '13') / 100);
       const computedTotal = (sub + tx).toFixed(2);
 
       const payload = {
@@ -184,7 +184,7 @@ export default function Quotes() {
         }))
       };
 
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const headers = { Authorization: `Bearer ${token}` };
 
       if (editingId) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Package, Search, Plus, AlertCircle, X, Image as ImageIcon, Edit, Trash2, Download } from 'lucide-react';
+import { Package, Search, Plus, AlertCircle, X, Image as ImageIcon, Edit, Trash2, Download, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 export default function Inventory() {
@@ -28,7 +28,7 @@ export default function Inventory() {
 
   const fetchProducts = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const response = await axios.get('http://localhost:8000/api/v1/inventory/products/', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -42,7 +42,7 @@ export default function Inventory() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem('access_token');
+        const token = sessionStorage.getItem('access_token');
         const headers = { Authorization: `Bearer ${token}` };
         
         await fetchProducts();
@@ -106,7 +106,7 @@ export default function Inventory() {
   const handleDelete = async (id) => {
     if(!window.confirm("¿Estás seguro de eliminar este producto?")) return;
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       await axios.delete(`http://localhost:8000/api/v1/inventory/products/${id}/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -132,7 +132,7 @@ export default function Inventory() {
     }
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const headers = { 
         Authorization: `Bearer ${token}`
       };
@@ -394,14 +394,80 @@ export default function Inventory() {
       )}
 
       {fullMedia && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 2000, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setFullMedia(null)}>
-           <img src={fullMedia} style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 0 30px rgba(0,0,0,0.8)' }} onClick={e => e.stopPropagation()} />
-           <button onClick={() => setFullMedia(null)} style={{ position: 'absolute', top: 20, right: 20, cursor: 'pointer', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255, 255, 255, 0.3)', color: 'white', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems:'center', justifyContent: 'center' }}>
-              <X size={24} />
-           </button>
-        </div>
+        <ZoomPanImage src={fullMedia} onClose={() => setFullMedia(null)} />
       )}
 
     </div>
   );
 }
+
+const ZoomPanImage = ({ src, onClose }) => {
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const handleWheel = (e) => {
+    e.stopPropagation();
+    const zoomFactor = 0.1;
+    if (e.deltaY < 0) {
+      setScale(prev => Math.min(prev + zoomFactor, 4));
+    } else {
+      setScale(prev => Math.max(prev - zoomFactor, 0.5));
+    }
+  };
+
+  const handleMouseDown = (e) => {
+    e.preventDefault(); 
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const zoomIn = (e) => { e.stopPropagation(); setScale(prev => Math.min(prev + 0.5, 4)); };
+  const zoomOut = (e) => { e.stopPropagation(); setScale(prev => Math.max(prev - 0.5, 0.5)); };
+  const resetZoom = (e) => { e.stopPropagation(); setScale(1); setPosition({x:0, y:0}); };
+
+  return (
+    <div 
+      style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 2000, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }} 
+      onWheel={handleWheel}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onClick={onClose}
+    >
+       <div 
+         style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`, transition: isDragging ? 'none' : 'transform 0.2s', cursor: isDragging ? 'grabbing' : 'grab', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+         onMouseDown={handleMouseDown}
+         onClick={e => e.stopPropagation()}
+       >
+         <img src={src} draggable="false" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 0 30px rgba(0,0,0,0.8)', userSelect: 'none', pointerEvents: 'none' }} />
+       </div>
+       
+       <div style={{ position: 'absolute', bottom: 30, display: 'flex', gap: '1rem', background: 'rgba(0,0,0,0.7)', padding: '0.8rem 1.5rem', borderRadius: '30px', backdropFilter: 'blur(5px)', border: '1px solid rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
+          <button onClick={zoomOut} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Alejar"><ZoomOut size={24} /></button>
+          <button onClick={resetZoom} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Ajustar a pantalla"><Maximize size={24} /></button>
+          <button onClick={zoomIn} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Acercar"><ZoomIn size={24} /></button>
+       </div>
+
+       <button onClick={onClose} style={{ position: 'absolute', top: 20, right: 20, cursor: 'pointer', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255, 255, 255, 0.3)', color: 'white', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems:'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.background='rgba(239, 68, 68, 0.5)'} onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.1)'}>
+          <X size={24} />
+       </button>
+    </div>
+  );
+};

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Wrench, Search, Plus, AlertCircle, Clock, X, Video, Edit, Trash2 } from 'lucide-react';
+import { Wrench, Search, Plus, AlertCircle, Clock, X, Video, Edit, Trash2, CheckCircle2, ImagePlus } from 'lucide-react';
 
 export default function Workshop() {
   const [orders, setOrders] = useState([]);
   const [motorcycles, setMotorcycles] = useState([]);
   const [technicians, setTechnicians] = useState([]);
-  const role = localStorage.getItem('user_role') || 'usuario';
+  const role = sessionStorage.getItem('user_role') || 'usuario';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,6 +31,11 @@ export default function Workshop() {
   const [mlSuggestion, setMlSuggestion] = useState(null);
   const [fullMedia, setFullMedia] = useState(null);
   const [viewMode, setViewMode] = useState('board'); // 'table' or 'board'
+  const [activeTab, setActiveTab] = useState('details');
+  const [serviceMethods, setServiceMethods] = useState([]);
+  const [orderGallery, setOrderGallery] = useState([]);
+  const [orderServices, setOrderServices] = useState([]);
+  const [selectedServiceToAdd, setSelectedServiceToAdd] = useState('');
 
   const KANBAN_COLUMNS = [
     { id: 'pending', label: 'Pendiente', color: '#eab308' },
@@ -43,7 +48,7 @@ export default function Workshop() {
 
   const fetchOrders = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const response = await axios.get('http://localhost:8000/api/v1/workshop/orders/', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -59,15 +64,19 @@ export default function Workshop() {
       try {
         await fetchOrders();
         
-        const token = localStorage.getItem('access_token');
+        const token = sessionStorage.getItem('access_token');
         const motoRes = await axios.get('http://localhost:8000/api/v1/workshop/motorcycles/', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const techRes = await axios.get('http://localhost:8000/api/v1/accounts/technicians/', {
           headers: { Authorization: `Bearer ${token}` }
         });
+        const srvRes = await axios.get('http://localhost:8000/api/v1/workshop/services/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setMotorcycles(motoRes.data);
         setTechnicians(techRes.data);
+        setServiceMethods(srvRes.data);
       } catch (err) {
         console.warn('Error fetching motorcycles:', err);
       } finally {
@@ -91,6 +100,9 @@ export default function Workshop() {
     setFormData({ code: '', motorcycle: '', technician: '', status: 'pending', problem_description: '', entry_at: '' });
     setEvidenceFile(null);
     setMlSuggestion(null);
+    setOrderGallery([]);
+    setOrderServices([]);
+    setActiveTab('details');
     setIsModalOpen(true);
   };
 
@@ -98,7 +110,6 @@ export default function Workshop() {
     setEditingId(order.id);
     let entryDate = '';
     if (order.entry_at) {
-        // format to datetime-local friendly
         entryDate = new Date(order.entry_at).toISOString().slice(0, 16);
     }
     setFormData({
@@ -111,6 +122,9 @@ export default function Workshop() {
     });
     setEvidenceFile(null);
     setMlSuggestion(null);
+    setOrderGallery(order.gallery || []);
+    setOrderServices(order.services || []);
+    setActiveTab('details');
     setIsModalOpen(true);
   };
 
@@ -122,7 +136,7 @@ export default function Workshop() {
     setDiagnosing(true);
     setMlSuggestion(null);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const res = await axios.post('http://localhost:8000/api/v1/workshop/predict-diagnosis/', {
         description: formData.problem_description
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -140,7 +154,7 @@ export default function Workshop() {
     setHistoryLoading(true);
     setOrderHistory([]);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const res = await axios.get(`http://localhost:8000/api/v1/workshop/orders/${order.id}/history/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -155,7 +169,7 @@ export default function Workshop() {
   const handleDelete = async (id) => {
     if(!window.confirm("¿Seguro que deseas eliminar esta orden de trabajo?")) return;
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       await axios.delete(`http://localhost:8000/api/v1/workshop/orders/${id}/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -163,6 +177,59 @@ export default function Workshop() {
     } catch(err) {
       alert("Error al eliminar la orden");
     }
+  };
+
+  const handleAddService = async () => {
+    if (!selectedServiceToAdd || !editingId) return;
+    try {
+      const token = sessionStorage.getItem('access_token');
+      const res = await axios.post(`http://localhost:8000/api/v1/workshop/orders/${editingId}/services/`, { service_id: selectedServiceToAdd }, { headers: { Authorization: `Bearer ${token}` } });
+      setOrderServices([...orderServices, res.data]);
+      setSelectedServiceToAdd('');
+      fetchOrders();
+    } catch (e) { alert("Error asignando servicio"); }
+  };
+
+  const handleToggleService = async (serviceObj) => {
+    try {
+      const token = sessionStorage.getItem('access_token');
+      const res = await axios.patch(`http://localhost:8000/api/v1/workshop/orders/${editingId}/services/${serviceObj.id}/`, { is_completed: !serviceObj.is_completed }, { headers: { Authorization: `Bearer ${token}` } });
+      setOrderServices(orderServices.map(s => s.id === serviceObj.id ? res.data : s));
+      fetchOrders();
+    } catch (e) { alert("Error actualizando servicio"); }
+  };
+
+  const handleDeleteService = async (serviceId) => {
+    try {
+      const token = sessionStorage.getItem('access_token');
+      await axios.delete(`http://localhost:8000/api/v1/workshop/orders/${editingId}/services/${serviceId}/`, { headers: { Authorization: `Bearer ${token}` } });
+      setOrderServices(orderServices.filter(s => s.id !== serviceId));
+      fetchOrders();
+    } catch (e) { alert("Error eliminando servicio"); }
+  };
+
+  const handleUploadGallery = async (e, stage) => {
+    const file = e.target.files[0];
+    if (!file || !editingId) return;
+    try {
+      const token = sessionStorage.getItem('access_token');
+      const payload = new FormData();
+      payload.append('media', file);
+      payload.append('stage', stage);
+      const res = await axios.post(`http://localhost:8000/api/v1/workshop/orders/${editingId}/upload-gallery/`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      setOrderGallery([...orderGallery, res.data]);
+      fetchOrders();
+    } catch (e) { alert("Error subiendo foto"); }
+  };
+
+  const handleDeleteGalleryPhoto = async (photoId) => {
+    if(!window.confirm("¿Eliminar esta foto?")) return;
+    try {
+      const token = sessionStorage.getItem('access_token');
+      await axios.delete(`http://localhost:8000/api/v1/workshop/orders/${editingId}/delete-gallery/${photoId}/`, { headers: { Authorization: `Bearer ${token}` } });
+      setOrderGallery(orderGallery.filter(p => p.id !== photoId));
+      fetchOrders();
+    } catch (e) { alert("Error eliminando foto"); }
   };
 
   const handleSubmit = async (e) => {
@@ -180,7 +247,7 @@ export default function Workshop() {
     }
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const headers = { 
         Authorization: `Bearer ${token}`
       };
@@ -399,10 +466,19 @@ export default function Workshop() {
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)', padding: '2rem 1rem', overflowY: 'auto' }}>
           <div className="modal-content" style={{ backgroundColor: 'var(--bg-secondary)', padding: '2rem', borderRadius: '16px', width: '100%', maxWidth: '600px', margin: 'auto', border: '1px solid var(--border-color)', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Plus size={24} /> {editingId ? 'Editar Orden de Trabajo' : 'Crear Orden de Trabajo'}</h2>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Plus size={24} /> {editingId ? 'Orden de Trabajo' : 'Crear Orden de Trabajo'}</h2>
               <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
             </div>
 
+            {editingId && (
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                <button onClick={() => setActiveTab('details')} style={{ background: 'transparent', border: 'none', color: activeTab === 'details' ? 'var(--primary-color)' : 'var(--text-muted)', fontWeight: activeTab === 'details' ? 'bold' : 'normal', cursor: 'pointer', padding: '0.5rem 1rem' }}>Detalles</button>
+                <button onClick={() => setActiveTab('services')} style={{ background: 'transparent', border: 'none', color: activeTab === 'services' ? 'var(--primary-color)' : 'var(--text-muted)', fontWeight: activeTab === 'services' ? 'bold' : 'normal', cursor: 'pointer', padding: '0.5rem 1rem' }}>Servicios ({orderServices.length})</button>
+                <button onClick={() => setActiveTab('gallery')} style={{ background: 'transparent', border: 'none', color: activeTab === 'gallery' ? 'var(--primary-color)' : 'var(--text-muted)', fontWeight: activeTab === 'gallery' ? 'bold' : 'normal', cursor: 'pointer', padding: '0.5rem 1rem' }}>Galería ({orderGallery.length})</button>
+              </div>
+            )}
+
+            {(activeTab === 'details' || !editingId) ? (
             <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr 1fr' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <label>Código de Orden</label>
@@ -485,6 +561,66 @@ export default function Workshop() {
                 </button>
               </div>
             </form>
+            ) : activeTab === 'services' ? (
+              <div className="services-tab" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <select value={selectedServiceToAdd} onChange={e => setSelectedServiceToAdd(e.target.value)} style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-main)' }}>
+                       <option value="">Selecciona un servicio para asignar...</option>
+                       {serviceMethods.map(s => <option key={s.id} value={s.id}>{s.name} - Bs.{s.labor_cost}</option>)}
+                    </select>
+                    <button type="button" onClick={handleAddService} disabled={!selectedServiceToAdd} className="btn-primary" style={{ padding: '0.75rem 1.5rem', whiteSpace: 'nowrap' }}>Agregar Tarea</button>
+                 </div>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {orderServices.map(svc => (
+                       <div key={svc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'var(--bg-main)', border: `1px solid ${svc.is_completed ? '#22c55e' : 'var(--border-color)'}`, borderRadius: '8px', transition: 'all 0.3s' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} onClick={() => handleToggleService(svc)}>
+                             {svc.is_completed ? <CheckCircle2 color="#22c55e" /> : <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: '2px solid var(--border-color)' }}></div>}
+                             <span style={{ textDecoration: svc.is_completed ? 'line-through' : 'none', color: svc.is_completed ? 'var(--text-muted)' : 'var(--text-main)', fontSize: '1.1rem', fontWeight: 500 }}>{svc.service_name}</span>
+                          </div>
+                          <button onClick={() => handleDeleteService(svc.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={20} /></button>
+                       </div>
+                    ))}
+                    {orderServices.length === 0 && <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No hay servicios asignados a esta orden.</div>}
+                 </div>
+              </div>
+            ) : (
+              <div className="gallery-tab" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                 <div style={{ display: 'flex', gap: '1rem' }}>
+                    <div style={{ flex: 1, background: 'var(--bg-main)', padding: '1rem', borderRadius: '12px', border: '1px dashed var(--border-color)', textAlign: 'center' }}>
+                       <h4 style={{ marginBottom: '1rem', color: '#eab308' }}>Fotos de Ingreso</h4>
+                       <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                          <ImagePlus size={32} />
+                          <span>Subir foto</span>
+                          <input type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => handleUploadGallery(e, 'entry')} />
+                       </label>
+                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem', justifyContent: 'center' }}>
+                          {orderGallery.filter(g => g.stage === 'entry').map(img => (
+                             <div key={img.id} style={{ position: 'relative', width: '80px', height: '80px' }}>
+                                <img src={img.media.startsWith('http') ? img.media : `http://localhost:8000${img.media}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer' }} onClick={() => setFullMedia(img.media.startsWith('http') ? img.media : `http://localhost:8000${img.media}`)} />
+                                <button onClick={() => handleDeleteGalleryPhoto(img.id)} style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>X</button>
+                             </div>
+                          ))}
+                       </div>
+                    </div>
+                    <div style={{ flex: 1, background: 'var(--bg-main)', padding: '1rem', borderRadius: '12px', border: '1px dashed var(--border-color)', textAlign: 'center' }}>
+                       <h4 style={{ marginBottom: '1rem', color: '#22c55e' }}>Fotos de Entrega</h4>
+                       <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                          <ImagePlus size={32} />
+                          <span>Subir foto</span>
+                          <input type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => handleUploadGallery(e, 'exit')} />
+                       </label>
+                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem', justifyContent: 'center' }}>
+                          {orderGallery.filter(g => g.stage === 'exit').map(img => (
+                             <div key={img.id} style={{ position: 'relative', width: '80px', height: '80px' }}>
+                                <img src={img.media.startsWith('http') ? img.media : `http://localhost:8000${img.media}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer' }} onClick={() => setFullMedia(img.media.startsWith('http') ? img.media : `http://localhost:8000${img.media}`)} />
+                                <button onClick={() => handleDeleteGalleryPhoto(img.id)} style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>X</button>
+                             </div>
+                          ))}
+                       </div>
+                    </div>
+                 </div>
+              </div>
+            )}
           </div>
         </div>
       )}

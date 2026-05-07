@@ -4,21 +4,21 @@ import { Home, Package, Wrench, Users, Settings, LogOut, FileText, Printer, BarC
 
 export default function Sidebar() {
   const navigate = useNavigate();
-  const [logo, setLogo] = useState(localStorage.getItem('company_logo') || 'https://media3.giphy.com/media/l41lN3OziHn3gWfkk/giphy.gif');
+  const [logo, setLogo] = useState(sessionStorage.getItem('company_logo') || 'https://media3.giphy.com/media/l41lN3OziHn3gWfkk/giphy.gif');
 
   useEffect(() => {
-    const handleLogoChange = () => setLogo(localStorage.getItem('company_logo') || 'https://media3.giphy.com/media/l41lN3OziHn3gWfkk/giphy.gif');
+    const handleLogoChange = () => setLogo(sessionStorage.getItem('company_logo') || 'https://media3.giphy.com/media/l41lN3OziHn3gWfkk/giphy.gif');
     window.addEventListener('logoChanged', handleLogoChange);
     return () => window.removeEventListener('logoChanged', handleLogoChange);
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user_role');
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('user_role');
     navigate('/login');
   };
 
-  const role = localStorage.getItem('user_role') || 'client';
+  const role = sessionStorage.getItem('user_role') || 'client';
 
   const navItems = [
     { to: '/dashboard', icon: <Home size={20} />, label: 'Inicio', roles: ['admin', 'technician', 'client'] },

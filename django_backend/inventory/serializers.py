@@ -22,7 +22,6 @@ class ProductSerializer(serializers.ModelSerializer):
             'category', 'category_name', 'supplier', 'supplier_name',
             'purchase_price', 'sale_price', 'stock', 'min_stock'
         ]
-        extra_kwargs = {'product_image': {'read_only': True}}
 
 class InventoryPredictionSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)

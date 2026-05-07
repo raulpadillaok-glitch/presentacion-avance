@@ -17,7 +17,7 @@ export default function Reports() {
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = sessionStorage.getItem('access_token');
         const res = await axios.get('http://localhost:8000/api/v1/reports/advanced/', {
           headers: { Authorization: `Bearer ${token}` }
         });

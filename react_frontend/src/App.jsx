@@ -15,7 +15,7 @@ import './index.css';
 
 function App() {
   // Verificación básica de autenticación
-  const isAuthenticated = !!localStorage.getItem('access_token');
+  const isAuthenticated = !!sessionStorage.getItem('access_token');
 
   return (
     <BrowserRouter>

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import transaction
-from .models import Motorcycle, RepairOrder, RepairOrderItem, ServiceMethod, Quote, QuoteItem, Invoice
+from .models import Motorcycle, RepairOrder, RepairOrderItem, ServiceMethod, Quote, QuoteItem, Invoice, RepairOrderGallery, RepairOrderService
 from inventory.models import Product
 
 class MotorcycleSerializer(serializers.ModelSerializer):
@@ -11,6 +11,18 @@ class MotorcycleSerializer(serializers.ModelSerializer):
 class ServiceMethodSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceMethod
+        fields = '__all__'
+
+class RepairOrderGallerySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RepairOrderGallery
+        fields = '__all__'
+
+class RepairOrderServiceSerializer(serializers.ModelSerializer):
+    service_name = serializers.CharField(source='service.name', read_only=True)
+    
+    class Meta:
+        model = RepairOrderService
         fields = '__all__'
 
 class RepairOrderItemSerializer(serializers.ModelSerializer):
@@ -70,6 +82,8 @@ class QuoteSerializer(serializers.ModelSerializer):
 
 class RepairOrderSerializer(serializers.ModelSerializer):
     items = RepairOrderItemSerializer(many=True, required=False)
+    gallery = RepairOrderGallerySerializer(many=True, read_only=True)
+    services = RepairOrderServiceSerializer(many=True, read_only=True)
     motorcycle_plate = serializers.CharField(source='motorcycle.plate', read_only=True)
     technician_name = serializers.SerializerMethodField(read_only=True)
 

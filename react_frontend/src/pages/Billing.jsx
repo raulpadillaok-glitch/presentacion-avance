@@ -11,7 +11,7 @@ export default function Billing() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const headers = { Authorization: `Bearer ${token}` };
 
       const [invRes, quoteRes] = await Promise.all([
@@ -35,7 +35,7 @@ export default function Billing() {
   const generateInvoice = async (quote) => {
     if(!window.confirm(`¿Generar factura legal para Cotización #${quote.id}?`)) return;
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const payload = {
         code: `FACT-${Math.floor(Math.random() * 100000)}`,
         quote: quote.id,

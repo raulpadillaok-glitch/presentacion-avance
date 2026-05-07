@@ -24,7 +24,7 @@ export default function Clients() {
   const fetchClients = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const response = await axios.get('http://localhost:8000/api/v1/accounts/clients/', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -68,7 +68,7 @@ export default function Clients() {
   const handleDelete = async (id) => {
     if (!window.confirm("¿Estás seguro de eliminar este cliente?")) return;
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       await axios.delete(`http://localhost:8000/api/v1/accounts/clients/${id}/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -95,7 +95,7 @@ export default function Clients() {
     };
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const headers = { Authorization: `Bearer ${token}` };
 
       if (editingId) {

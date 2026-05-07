@@ -30,7 +30,7 @@ export default function ChatBot() {
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       const historyToSend = messages.filter((m, i) => i > 0);

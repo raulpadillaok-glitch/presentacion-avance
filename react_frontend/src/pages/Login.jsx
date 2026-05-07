@@ -34,8 +34,8 @@ export default function Login() {
         password: password
       });
       const token = response.data.access;
-      localStorage.setItem('access_token', token);
-      localStorage.setItem('user_role', response.data.role);
+      sessionStorage.setItem('access_token', token);
+      sessionStorage.setItem('user_role', response.data.role);
       navigate('/dashboard'); // Redirect a Dashboard
     } catch (error) {
       setErrorStatus('Credenciales inválidas. Verifica tu usuario y contraseña.');

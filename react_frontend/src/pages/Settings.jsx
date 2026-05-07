@@ -53,10 +53,10 @@ export default function Settings() {
 
 function CompanySettings() {
   const [data, setData] = useState({
-    name: localStorage.getItem('company_name') || 'Chicken Moto ERP',
-    currency: localStorage.getItem('company_currency') || 'Bs.',
-    taxRate: localStorage.getItem('company_tax') || '13',
-    logo: localStorage.getItem('company_logo') || 'https://media3.giphy.com/media/l41lN3OziHn3gWfkk/giphy.gif',
+    name: sessionStorage.getItem('company_name') || 'Chicken Moto ERP',
+    currency: sessionStorage.getItem('company_currency') || 'Bs.',
+    taxRate: sessionStorage.getItem('company_tax') || '13',
+    logo: sessionStorage.getItem('company_logo') || 'https://media3.giphy.com/media/l41lN3OziHn3gWfkk/giphy.gif',
   });
 
   const handleChange = (e) => setData({ ...data, [e.target.name]: e.target.value });
@@ -78,10 +78,10 @@ function CompanySettings() {
 
   const handleSave = (e) => {
     e.preventDefault();
-    localStorage.setItem('company_name', data.name);
-    localStorage.setItem('company_currency', data.currency);
-    localStorage.setItem('company_tax', data.taxRate);
-    localStorage.setItem('company_logo', data.logo);
+    sessionStorage.setItem('company_name', data.name);
+    sessionStorage.setItem('company_currency', data.currency);
+    sessionStorage.setItem('company_tax', data.taxRate);
+    sessionStorage.setItem('company_logo', data.logo);
     window.dispatchEvent(new Event('logoChanged'));
     alert('Preferencias de empresa guardadas con éxito. Surte efecto en la interfaz local.');
   };
@@ -139,7 +139,7 @@ function TechnicianSettings() {
 
   const fetchTechs = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const res = await axios.get('http://localhost:8000/api/v1/accounts/technicians/', { headers: { Authorization: `Bearer ${token}` } });
       setTechs(res.data);
     } catch(err) { console.error(err); } 
@@ -161,7 +161,7 @@ function TechnicianSettings() {
         is_available: formData.is_available
       };
       
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       if (editingId) await axios.put(`http://localhost:8000/api/v1/accounts/technicians/${editingId}/`, payload, config);
@@ -190,7 +190,7 @@ function TechnicianSettings() {
   const handleDelete = async (id) => {
     if(!window.confirm('¿Borrar este técnico?')) return;
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       await axios.delete(`http://localhost:8000/api/v1/accounts/technicians/${id}/`, { headers: { Authorization: `Bearer ${token}` } });
       fetchTechs();
     } catch (err) { alert('Error al borrar'); }
@@ -273,7 +273,7 @@ function ServiceSettings() {
 
   const fetchServices = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const res = await axios.get('http://localhost:8000/api/v1/workshop/services/', { headers: { Authorization: `Bearer ${token}` } });
       setServices(res.data);
     } catch(err) { console.error(err); } 
@@ -295,7 +295,7 @@ function ServiceSettings() {
         data.append('demonstration_video', formData.demonstration_video);
       }
 
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
       
       if (editingId) await axios.put(`http://localhost:8000/api/v1/workshop/services/${editingId}/`, data, config);
@@ -324,7 +324,7 @@ function ServiceSettings() {
   const handleDelete = async (id) => {
     if(!window.confirm('¿Borrar este servicio de catálogo?')) return;
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       await axios.delete(`http://localhost:8000/api/v1/workshop/services/${id}/`, { headers: { Authorization: `Bearer ${token}` } });
       fetchServices();
     } catch (err) { alert('Error al borrar'); }
@@ -424,7 +424,7 @@ function DeletedClientsSettings() {
 
   const fetchDeleted = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const response = await axios.get('http://localhost:8000/api/v1/accounts/clients/deleted/', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -443,7 +443,7 @@ function DeletedClientsSettings() {
   const handleRestore = async (id) => {
     if (!window.confirm("¿Seguro que deseas restaurar este cliente? Aparecerá nuevamente en el módulo general.")) return;
     try {
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       await axios.post(`http://localhost:8000/api/v1/accounts/clients/${id}/restore/`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });

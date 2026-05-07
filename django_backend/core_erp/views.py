@@ -151,6 +151,25 @@ class DashboardStatsAPIView(APIView):
             if day_total == 0: day_total = (i*15) + 50
             revenue_data.append({"name": d.strftime('%d %b'), "Ingresos": float(day_total)})
 
+        # Consumo de repuestos (Últimos 7 días)
+        from workshop.models import RepairOrderItem
+        seven_days_ago = today - timedelta(days=7)
+        consumption = RepairOrderItem.objects.filter(
+            repair_order__created_at__gte=seven_days_ago
+        ).values('product__name').annotate(total_qty=Sum('quantity')).order_by('-total_qty')[:7]
+        
+        weekly_consumption = [{"name": c['product__name'][:15], "cantidad": c['total_qty']} for c in consumption]
+        
+        # Mock data if empty
+        if not weekly_consumption:
+            weekly_consumption = [
+                {"name": "Aceite Motul 4T", "cantidad": 12},
+                {"name": "Bujía NGK", "cantidad": 8},
+                {"name": "Pastillas Freno", "cantidad": 5},
+                {"name": "Filtro Aceite", "cantidad": 4},
+                {"name": "Cadena 428H", "cantidad": 3}
+            ]
+
         return Response({
             "monthly_revenue": monthly_revenue,
             "active_orders": active_orders,
@@ -158,7 +177,8 @@ class DashboardStatsAPIView(APIView):
             "total_clients": total_clients,
             "recent_orders": recent_orders_data,
             "critical_stock": critical_stock_data,
-            "revenue_chart": revenue_data
+            "revenue_chart": revenue_data,
+            "weekly_consumption": weekly_consumption
         })
 
 import os
@@ -381,6 +401,65 @@ class RepairOrderViewSet(viewsets.ModelViewSet):
                 "problem": h.problem_description
             })
         return Response(data)
+
+    @action(detail=True, methods=['post'], url_path='upload-gallery')
+    def upload_gallery(self, request, pk=None):
+        from workshop.models import RepairOrderGallery
+        order = self.get_object()
+        file = request.FILES.get('media')
+        stage = request.data.get('stage', 'entry')
+        if not file:
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        gallery_obj = RepairOrderGallery.objects.create(repair_order=order, media=file, stage=stage)
+        from workshop.serializers import RepairOrderGallerySerializer
+        return Response(RepairOrderGallerySerializer(gallery_obj).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['delete'], url_path='delete-gallery/(?P<image_id>[^/.]+)')
+    def delete_gallery(self, request, pk=None, image_id=None):
+        from workshop.models import RepairOrderGallery
+        order = self.get_object()
+        try:
+            image = RepairOrderGallery.objects.get(id=image_id, repair_order=order)
+            image.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except RepairOrderGallery.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['post'], url_path='services')
+    def add_service(self, request, pk=None):
+        from workshop.models import RepairOrderService, ServiceMethod
+        order = self.get_object()
+        service_id = request.data.get('service_id')
+        try:
+            service_method = ServiceMethod.objects.get(id=service_id)
+            service_obj = RepairOrderService.objects.create(
+                repair_order=order,
+                service=service_method,
+                price=service_method.labor_cost
+            )
+            from workshop.serializers import RepairOrderServiceSerializer
+            return Response(RepairOrderServiceSerializer(service_obj).data, status=status.HTTP_201_CREATED)
+        except ServiceMethod.DoesNotExist:
+            return Response({'error': 'Service not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['patch', 'delete'], url_path='services/(?P<service_id>[^/.]+)')
+    def manage_service(self, request, pk=None, service_id=None):
+        from workshop.models import RepairOrderService
+        order = self.get_object()
+        try:
+            service_obj = RepairOrderService.objects.get(id=service_id, repair_order=order)
+            if request.method == 'DELETE':
+                service_obj.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            elif request.method == 'PATCH':
+                is_completed = request.data.get('is_completed')
+                if is_completed is not None:
+                    service_obj.is_completed = (str(is_completed).lower() == 'true')
+                    service_obj.save()
+                from workshop.serializers import RepairOrderServiceSerializer
+                return Response(RepairOrderServiceSerializer(service_obj).data)
+        except RepairOrderService.DoesNotExist:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
 class QuoteViewSet(viewsets.ModelViewSet):
     """
